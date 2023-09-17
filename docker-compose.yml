@@ -1,0 +1,61 @@
+version: "3"
+
+services:
+  ruhoot-mysql:
+    container_name: ruhoot-mysql
+    restart: unless-stopped
+    image: mysql:8
+    command:
+      - mysqld
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_bin
+      - --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_DATABASE: 'ruhoot'
+      MYSQL_ROOT_PASSWORD: 'root'
+      MYSQL_USER: 'user'
+      MYSQL_PASSWORD: 'user_pwd'
+    ports:
+      - '3306:3306'
+    volumes:
+      - ./.docker/mysql/data:/var/lib/mysql
+      - ./.docker/mysql/my.cnf:/etc/mysql/my.cnf
+      - ./.docker/mysql-files:/var/lib/mysql-files
+    networks:
+      - ruhoot
+
+  ruhoot-nginx:
+    container_name: ruhoot-nginx
+    restart: always
+    image: nginx
+    ports:
+      - 443:443
+      - 80:80
+    volumes:
+      - ./.docker/nginx/hosts:/etc/nginx/conf.d
+      - ./www:/var/www
+      - ./.docker/nginx/log:/var/log/nginx
+      - ./.docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+    networks:
+      - ruhoot
+
+  ruhoot-php:
+    build:
+      context: ./.docker/php
+      dockerfile: Dockerfile
+    image: php
+    container_name: ruhoot-php
+    restart: unless-stopped
+    working_dir: /var/www/
+    volumes:
+      - ./www:/var/www
+      - ./.docker/php/php.ini:/usr/local/etc/php/conf.d/uploads.ini
+    networks:
+      - ruhoot
+    depends_on:
+      - ruhoot-mysql
+      - ruhoot-nginx
+
+networks:
+  ruhoot:
+    driver: bridge
